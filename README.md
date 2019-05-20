@@ -1,6 +1,10 @@
 [jQuery](https://jquery.com/) — New Wave JavaScript
 ==================================================
 
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fjquery%2Fjquery.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fjquery%2Fjquery?ref=badge_shield)
+
+[![Gitter](https://badges.gitter.im/jquery/jquery.svg)](https://gitter.im/jquery/jquery?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+
 Contribution Guides
 --------------------------------------
 
@@ -21,7 +25,7 @@ Environments in which to use jQuery
 What you need to build your own jQuery
 --------------------------------------
 
-In order to build jQuery, you need to have the latest Node.js/npm and git 1.7 or later. Earlier versions might work, but are not supported.
+To build jQuery, you need to have the latest Node.js/npm and git 1.7 or later. Earlier versions might work, but are not supported.
 
 For Windows, you have to download and install [git](https://git-scm.com/downloads) and [Node.js](https://nodejs.org/en/download/).
 
@@ -88,8 +92,7 @@ Some example modules that can be excluded are:
 - **effects**: The `.animate()` method and its shorthands such as `.slideUp()` or `.hide("slow")`.
 - **event**: The `.on()` and `.off()` methods and all event functionality. Also removes `event/alias`.
 - **event/alias**: All event attaching/triggering shorthands like `.click()` or `.mouseover()`.
-- **event/focusin**: Cross-browser support for the focusin and focusout events.
-- **event/trigger**: The `.trigger()` and `.triggerHandler()` methods. Used by **alias** and **focusin** modules.
+- **event/trigger**: The `.trigger()` and `.triggerHandler()` methods. Used by the **alias** module.
 - **offset**: The `.offset()`, `.position()`, `.offsetParent()`, `.scrollLeft()`, and `.scrollTop()` methods.
 - **wrap**: The `.wrap()`, `.wrapAll()`, `.wrapInner()`, and `.unwrap()` methods.
 - **core/ready**: Exclude the ready module if you place your scripts at the end of the body. Any ready callbacks bound with `jQuery()` will simply be called immediately. However, `jQuery(document).ready()` will not be a function and `.on("ready", ...)` or similar will not be triggered.
@@ -323,20 +326,20 @@ fireNative( jQuery("#elem")[0], "click" );
 ### Add random number to url to stop caching ###
 
 ```js
-url( "some/url.php" );
+url( "some/url" );
 ```
 
 Example:
 
 ```js
-url("data/test.html");
+url("index.html");
 
-=> "data/test.html?10538358428943"
+=> "data/index.html?10538358428943"
 
 
-url("data/test.php?foo=bar");
+url("mock.php?foo=bar");
 
-=> "data/test.php?foo=bar&10538358345554"
+=> "data/mock.php?foo=bar&10538358345554"
 ```
 
 

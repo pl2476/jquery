@@ -12,18 +12,16 @@ var oldRaf = window.requestAnimationFrame,
 	};
 
 QUnit.module( "effects", {
-	setup: function() {
-		window.requestAnimationFrame = null;
-		this.sandbox = sinon.sandbox.create();
+	beforeEach: function() {
+		this.sandbox = sinon.createSandbox();
 		this.clock = this.sandbox.useFakeTimers( 505877050 );
 		this._oldInterval = jQuery.fx.interval;
+		window.requestAnimationFrame = null;
 		jQuery.fx.step = {};
 		jQuery.fx.interval = 10;
-		jQuery.now = Date.now;
 	},
-	teardown: function() {
+	afterEach: function() {
 		this.sandbox.restore();
-		jQuery.now = Date.now;
 		jQuery.fx.stop();
 		jQuery.fx.interval = this._oldInterval;
 		window.requestAnimationFrame = oldRaf;
@@ -33,7 +31,7 @@ QUnit.module( "effects", {
 
 QUnit[ jQuery.find.compile ? "test" : "skip" ]( "sanity check", function( assert ) {
 	assert.expect( 1 );
-	assert.equal( jQuery( "#dl:visible, #qunit-fixture:visible, #foo:visible" ).length, 3, "QUnit state is correct for testing effects" );
+	assert.equal( jQuery( "#qunit-fixture:visible, #foo:visible" ).length, 2, "QUnit state is correct for testing effects" );
 } );
 
 QUnit.test( "show() basic", function( assert ) {
@@ -221,6 +219,40 @@ supportjQuery.each( hideOptions, function( type, setup ) {
 		clock.tick( 300 );
 
 		assert.expectJqData( this, $span, "olddisplay" );
+	} );
+
+	// Support: IE 11+, Edge 12 - 18+
+	// IE/Edge don't support Shadow DOM.
+	QUnit[ document.body.getRootNode ? "test" : "skip" ](
+		"Persist correct display value - " + type + " hidden, shadow child", function( assert ) {
+		assert.expect( 3 );
+
+		jQuery( "<div id='shadowHost'></div>" ).appendTo( "#qunit-fixture" );
+
+		var shadowHost = document.querySelector( "#shadowHost" );
+		var shadowRoot = shadowHost.attachShadow( { mode: "open" } );
+		shadowRoot.innerHTML = "<style>.hidden{display: none;}</style>" +
+			"<span id='shadowChild' class='hidden'></span>";
+		var shadowChild = shadowRoot.querySelector( "#shadowChild" );
+
+		var $shadowChild = jQuery( shadowChild );
+		var displayNone = "none";
+		var display = "inline";
+		var clock = this.clock;
+
+		$shadowChild.fadeIn( 100, function() {
+			assert.equal( $shadowChild.css( "display" ), display, "Expecting shadow display: " + display );
+			$shadowChild.fadeOut( 100, function() {
+				assert.equal( $shadowChild.css( "display" ), displayNone, "Expecting shadow display: " + displayNone );
+				$shadowChild.fadeIn( 100, function() {
+					assert.equal( $shadowChild.css( "display" ), display, "Expecting shadow display: " + display );
+				} );
+			} );
+		} );
+
+		clock.tick( 300 );
+
+		assert.expectJqData( this, $shadowChild, "olddisplay" );
 	} );
 } );
 
@@ -423,8 +455,8 @@ QUnit.test( "animate resets overflow-x and overflow-y when finished", function( 
 
 /* // This test ends up being flaky depending upon the CPU load
 QUnit.test("animate option (queue === false)", function( assert ) {
+	var done = assert.async();
 	assert.expect(1);
-	QUnit.stop();
 
 	var order = [];
 
@@ -433,7 +465,7 @@ QUnit.test("animate option (queue === false)", function( assert ) {
 		// should finish after unqueued animation so second
 		order.push(2);
 		assert.deepEqual( order, [ 1, 2 ], "Animations finished in the correct order" );
-		QUnit.start();
+		done();
 	});
 	$foo.animate({fontSize:"2em"}, {queue:false, duration:10, complete:function () {
 		// short duration and out of queue so should finish first
@@ -609,6 +641,17 @@ QUnit.test( "animate non-element", function( assert ) {
 	this.clock.tick( 200 );
 } );
 
+QUnit.test( "animate non-element's zIndex without appending \"px\"", function( assert ) {
+	assert.expect( 1 );
+
+	var obj = { zIndex: 0 };
+
+	jQuery( obj ).animate( { zIndex: 200 }, 200, function() {
+		assert.equal( obj.zIndex, 200, "The custom property should be modified without appending \"px\"." );
+	} );
+	this.clock.tick( 200 );
+} );
+
 QUnit.test( "stop()", function( assert ) {
 	assert.expect( 4 );
 
@@ -649,44 +692,35 @@ QUnit.test( "stop()", function( assert ) {
 	this.clock.tick( 100 );
 } );
 
-// In IE9 inside testswarm this test doesn't work properly
-( function() {
-	var type = "test";
+QUnit.test( "stop() - several in queue", function( assert ) {
+	assert.expect( 5 );
 
-	if ( QUnit.isSwarm && /msie 9\.0/i.test( window.navigator.userAgent ) ) {
-		type = "skip";
-	}
+	var nw, $foo = jQuery( "#foo" );
 
-	QUnit[ type ]( "stop() - several in queue", function( assert ) {
-		assert.expect( 5 );
+	// default duration is 400ms, so 800px ensures we aren't 0 or 1 after 1ms
+	$foo.hide().css( "width", 800 );
 
-		var nw, $foo = jQuery( "#foo" );
+	$foo.animate( { "width": "show" }, 400, "linear" );
+	$foo.animate( { "width": "hide" } );
+	$foo.animate( { "width": "show" } );
 
-		// default duration is 400ms, so 800px ensures we aren't 0 or 1 after 1ms
-		$foo.hide().css( "width", 800 );
+	this.clock.tick( 1 );
 
-		$foo.animate( { "width": "show" }, 400, "linear" );
-		$foo.animate( { "width": "hide" } );
-		$foo.animate( { "width": "show" } );
+	jQuery.fx.tick();
+	assert.equal( $foo.queue().length, 3, "3 in the queue" );
 
-		this.clock.tick( 1 );
+	nw = $foo.css( "width" );
+	assert.notEqual( parseFloat( nw ), 1, "An animation occurred " + nw );
+	$foo.stop();
 
-		jQuery.fx.tick();
-		assert.equal( $foo.queue().length, 3, "3 in the queue" );
+	assert.equal( $foo.queue().length, 2, "2 in the queue" );
+	nw = $foo.css( "width" );
+	assert.notEqual( parseFloat( nw ), 1, "Stop didn't reset the animation " + nw );
 
-		nw = $foo.css( "width" );
-		assert.notEqual( parseFloat( nw ), 1, "An animation occurred " + nw );
-		$foo.stop();
+	$foo.stop( true );
 
-		assert.equal( $foo.queue().length, 2, "2 in the queue" );
-		nw = $foo.css( "width" );
-		assert.notEqual( parseFloat( nw ), 1, "Stop didn't reset the animation " + nw );
-
-		$foo.stop( true );
-
-		assert.equal( $foo.queue().length, 0, "0 in the queue" );
-	} );
-} )();
+	assert.equal( $foo.queue().length, 0, "0 in the queue" );
+} );
 
 QUnit.test( "stop(clearQueue)", function( assert ) {
 	assert.expect( 4 );
@@ -1930,36 +1964,37 @@ QUnit.test( "Animation callbacks (#11797)", function( assert ) {
 QUnit.test( "Animation callbacks in order (#2292)", function( assert ) {
 	assert.expect( 9 );
 
-	var step = 0,
+	var done = assert.async(),
+		step = 0,
 		dur = 50;
 
-	// assert? -> github.com/JamesMGreene/qunit-assert-step
 	jQuery( "#foo" ).animate( {
 		width: "5px"
 	}, {
 		duration: dur,
 		start: function() {
-			assert.step( 1 );
+			assert.step( "start" );
 		},
 		progress: function( anim, p, ms ) {
 			if ( !( step++ ) ) {
-				assert.step( 2 );
+				assert.step( "progress" );
 				assert.strictEqual( p, 0, "first progress callback: progress ratio" );
 				assert.strictEqual( ms, dur, "first progress callback: remaining ms" );
 			} else {
-				assert.step( 3 );
+				assert.step( "last progress" );
 				assert.strictEqual( p, 1, "last progress callback: progress ratio" );
 				assert.strictEqual( ms, 0, "last progress callback: remaining ms" );
 			}
 		},
 		done: function() {
-			assert.step( 4 );
+			assert.step( "done" );
 		},
 		fail: function() {
 			assert.ok( false, "Animation failed" );
 		},
 		always: function() {
-			assert.step( 5 );
+			assert.verifySteps( [ "start", "progress", "last progress", "done" ] );
+			done();
 		}
 	} ).finish();
 
@@ -2509,7 +2544,7 @@ function testEasing( assert, speed, easing, complete ) {
 
 	assert.equal( options.duration, 10, "Duration set properly" );
 	assert.equal(
-		jQuery.isFunction( options.easing ) ? options.easing() : options.easing,
+		typeof options.easing === "function" ? options.easing() : options.easing,
 		"linear",
 		"Easing set properly"
 	);

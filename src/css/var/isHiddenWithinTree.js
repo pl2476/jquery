@@ -1,6 +1,5 @@
 define( [
-	"../../core",
-	"../../selector"
+	"../../core"
 
 	// css is assumed
 ], function( jQuery ) {
@@ -22,13 +21,6 @@ define( [
 		// Inline style trumps all
 		return elem.style.display === "none" ||
 			elem.style.display === "" &&
-
-			// Otherwise, check computed style
-			// Support: Firefox <=43 - 45
-			// Disconnected elements can have computed display: none, so first confirm that elem is
-			// in the document.
-			jQuery.contains( elem.ownerDocument, elem ) &&
-
 			jQuery.css( elem, "display" ) === "none";
 	};
 } );
